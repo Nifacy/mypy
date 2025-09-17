@@ -1,0 +1,9 @@
+[case testCanUseExtraItemsKeywordArgumentsInTypedDictConstructor]
+from typing import TypedDict
+
+class A(TypedDict, extra_items=int):  # N: 'extra_items' is not supported for now
+    pass
+
+B = TypedDict("B", {}, extra_items=int)  # N: 'extra_items' is not supported for now
+[builtins fixtures/dict.pyi]
+[typing fixtures/typing-typeddict.pyi]

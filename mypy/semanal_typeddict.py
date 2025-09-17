@@ -313,6 +313,9 @@ class TypedDictAnalyzer:
                     self.api, defn.keywords["total"], "total", True
                 )
                 continue
+            if key == "extra_items":
+                self.msg.note("'extra_items' is not supported for now", defn)
+                continue
             for_function = ' for "__init_subclass__" of "TypedDict"'
             self.msg.unexpected_keyword_argument_for_function(for_function, key, defn)
 
@@ -511,15 +514,21 @@ class TypedDictAnalyzer:
         args = call.args
         if len(args) < 2:
             return self.fail_typeddict_arg("Too few arguments for TypedDict()", call)
-        if len(args) > 3:
+        if len(args) > 4:
             return self.fail_typeddict_arg("Too many arguments for TypedDict()", call)
         # TODO: Support keyword arguments
-        if call.arg_kinds not in ([ARG_POS, ARG_POS], [ARG_POS, ARG_POS, ARG_NAMED]):
+        if call.arg_kinds not in (
+            [ARG_POS, ARG_POS],
+            [ARG_POS, ARG_POS, ARG_NAMED],
+            [ARG_POS, ARG_POS, ARG_NAMED, ARG_NAMED],
+        ):
             return self.fail_typeddict_arg("Unexpected arguments to TypedDict()", call)
-        if len(args) == 3 and call.arg_names[2] != "total":
-            return self.fail_typeddict_arg(
-                f'Unexpected keyword argument "{call.arg_names[2]}" for "TypedDict"', call
-            )
+        if len(args) >= 3 and call.arg_names[2] != "total":
+            for arg_name in call.arg_names[2:]:
+                if arg_name not in ("total", "extra_items"):
+                    return self.fail_typeddict_arg(
+                        f'Unexpected keyword argument "{arg_name}" for "TypedDict"', call
+                    )
         if not isinstance(args[0], StrExpr):
             return self.fail_typeddict_arg(
                 "TypedDict() expects a string literal as the first argument", call
@@ -529,10 +538,16 @@ class TypedDictAnalyzer:
                 "TypedDict() expects a dictionary literal as the second argument", call
             )
         total: bool | None = True
-        if len(args) == 3:
-            total = require_bool_literal_argument(self.api, call.args[2], "total")
-            if total is None:
-                return "", [], [], True, [], False
+        if len(args) >= 3:
+            for arg_name, arg in zip(call.arg_names[2:], args[2:]):
+                if arg_name == "extra_items":
+                    self.msg.note("'extra_items' is not supported for now", call)
+                elif arg_name == "total":
+                    total = require_bool_literal_argument(self.api, arg, "total")
+                    if total is None:
+                        return "", [], [], True, [], False
+                else:
+                    return "", [], [], True, [], False
         dictexpr = args[1]
         tvar_defs = self.api.get_and_bind_all_tvars([t for k, t in dictexpr.items])
         res = self.parse_typeddict_fields_with_types(dictexpr.items)
