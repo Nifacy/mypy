@@ -314,7 +314,20 @@ class TypedDictAnalyzer:
                 )
                 continue
             if key == "extra_items":
-                self.msg.note("'extra_items' is not supported for now", defn)
+                try:
+                    type = expr_to_unanalyzed_type(
+                        expr=defn.keywords["extra_items"],
+                        options=self.options,
+                        allow_new_syntax=self.api.is_stub_file,
+                    )
+                except TypeTranslationError:
+                    self.fail("Type expected", defn.keywords["extra_items"])
+                else:
+                    analyzed = self.api.anal_type(
+                        type,
+                        allow_typed_dict_special_forms=True,
+                        allow_placeholder=not self.api.is_func_scope(),
+                    )
                 continue
             for_function = ' for "__init_subclass__" of "TypedDict"'
             self.msg.unexpected_keyword_argument_for_function(for_function, key, defn)
@@ -541,7 +554,22 @@ class TypedDictAnalyzer:
         if len(args) >= 3:
             for arg_name, arg in zip(call.arg_names[2:], args[2:]):
                 if arg_name == "extra_items":
-                    self.msg.note("'extra_items' is not supported for now", call)
+                    try:
+                        type = expr_to_unanalyzed_type(
+                            expr=arg, options=self.options, allow_new_syntax=self.api.is_stub_file
+                        )
+                    except TypeTranslationError:
+                        self.fail("Invalid argument to extra_items", arg, code=codes.ARG_TYPE)
+                        return "", [], [], True, [], False
+                    else:
+                        analyzed = self.api.anal_type(
+                            type,
+                            allow_typed_dict_special_forms=True,
+                            allow_placeholder=not self.api.is_func_scope(),
+                        )
+
+                        if analyzed is None:
+                            return "", [], [], True, [], False
                 elif arg_name == "total":
                     total = require_bool_literal_argument(self.api, arg, "total")
                     if total is None:

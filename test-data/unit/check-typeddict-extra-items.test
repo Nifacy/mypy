@@ -1,9 +1,19 @@
 [case testCanUseExtraItemsKeywordArgumentsInTypedDictConstructor]
 from typing import TypedDict
 
-class A(TypedDict, extra_items=int):  # N: 'extra_items' is not supported for now
+class A(TypedDict, extra_items=int):
     pass
 
-B = TypedDict("B", {}, extra_items=int)  # N: 'extra_items' is not supported for now
+B = TypedDict("B", {}, extra_items=int)
+[builtins fixtures/dict.pyi]
+[typing fixtures/typing-typeddict.pyi]
+
+[case testTypedDictWithInvalidExtraItemsArgument]
+from typing import TypedDict
+
+class A(TypedDict, extra_items=True):  # E: Invalid type: try using Literal[True] instead?
+    pass
+
+B = TypedDict("B", {}, extra_items=46)  # E: Invalid type: try using Literal[46] instead?
 [builtins fixtures/dict.pyi]
 [typing fixtures/typing-typeddict.pyi]
