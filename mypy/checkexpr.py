@@ -975,13 +975,22 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
     def typeddict_callable_from_context(
         self, callee: TypedDictType, variables: Sequence[TypeVarLikeType] | None = None
     ) -> CallableType:
+        arg_types = list(callee.items.values())
+        arg_kinds = [
+            ArgKind.ARG_NAMED if name in callee.required_keys else ArgKind.ARG_NAMED_OPT
+            for name in callee.items
+        ]
+        arg_names: list[str | None] = list(callee.items.keys())
+
+        if callee.extra_items is not None:
+            arg_types.append(callee.extra_items)
+            arg_kinds.append(ArgKind.ARG_STAR2)
+            arg_names.append(None)
+
         return CallableType(
-            list(callee.items.values()),
-            [
-                ArgKind.ARG_NAMED if name in callee.required_keys else ArgKind.ARG_NAMED_OPT
-                for name in callee.items
-            ],
-            list(callee.items.keys()),
+            arg_types,
+            arg_kinds,
+            arg_names,
             callee,
             self.named_type("builtins.type"),
             variables=variables,
