@@ -612,7 +612,9 @@ class TypeJoinVisitor(TypeVisitor[ProperType]):
             required_keys = all_keys & t.required_keys & self.s.required_keys
             # If one type has a key as readonly, we mark it as readonly for both:
             readonly_keys = (t.readonly_keys | t.readonly_keys) & all_keys
-            return TypedDictType(items, required_keys, readonly_keys, fallback)
+
+            # FIXME: Don't support 'extra_items' info in joining TypedDict's
+            return TypedDictType(items, required_keys, readonly_keys, fallback, None)
         elif isinstance(self.s, Instance):
             return join_types(self.s, t.fallback)
         else:

@@ -2679,7 +2679,13 @@ def format_type_inner(
             if item_name in typ.readonly_keys:
                 modifier += "="
             items.append(f"{item_name!r}{modifier}: {format(item_type)}")
-        return f"TypedDict({{{', '.join(items)}}})"
+
+        if typ.extra_items is None:
+            extra_items = ""
+        else:
+            extra_items = f", extra_items={format(typ.extra_items)}"
+
+        return f"TypedDict({{{', '.join(items)}}}{extra_items})"
     elif isinstance(typ, LiteralType):
         return f"Literal[{format_literal_value(typ)}]"
     elif isinstance(typ, UnionType):

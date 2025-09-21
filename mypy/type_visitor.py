@@ -274,12 +274,19 @@ class TypeTranslator(TypeVisitor[Type]):
         if cached := self.get_cached(t):
             return cached
         items = {item_name: item_type.accept(self) for (item_name, item_type) in t.items.items()}
+
+        if t.extra_items is not None:
+            extra_items = t.extra_items.accept(self)
+        else:
+            extra_items = None
+
         result = TypedDictType(
             items,
             t.required_keys,
             t.readonly_keys,
             # TODO: This appears to be unsafe.
             cast(Any, t.fallback.accept(self)),
+            extra_items,
             t.line,
             t.column,
         )

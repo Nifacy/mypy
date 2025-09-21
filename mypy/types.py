@@ -2902,12 +2902,14 @@ class TypedDictType(ProperType):
         "fallback",
         "extra_items_from",
         "to_be_mutated",
+        "extra_items",
     )
 
     items: dict[str, Type]  # item_name -> item_type
     required_keys: set[str]
     readonly_keys: set[str]
     fallback: Instance
+    extra_items: Type | None
 
     extra_items_from: list[ProperType]  # only used during semantic analysis
     to_be_mutated: bool  # only used in a plugin for `.update`, `|=`, etc
@@ -2918,6 +2920,7 @@ class TypedDictType(ProperType):
         required_keys: set[str],
         readonly_keys: set[str],
         fallback: Instance,
+        extra_items: Type | None,
         line: int = -1,
         column: int = -1,
     ) -> None:
@@ -2926,6 +2929,7 @@ class TypedDictType(ProperType):
         self.required_keys = required_keys
         self.readonly_keys = readonly_keys
         self.fallback = fallback
+        self.extra_items = extra_items
         self.can_be_true = len(self.items) > 0
         self.can_be_false = len(self.required_keys) == 0
         self.extra_items_from = []
@@ -2967,6 +2971,7 @@ class TypedDictType(ProperType):
             "required_keys": sorted(self.required_keys),
             "readonly_keys": sorted(self.readonly_keys),
             "fallback": self.fallback.serialize(),
+            "extra_items": None if self.extra_items is None else self.extra_items.serialize(),
         }
 
     @classmethod
@@ -2977,6 +2982,7 @@ class TypedDictType(ProperType):
             set(data["required_keys"]),
             set(data["readonly_keys"]),
             Instance.deserialize(data["fallback"]),
+            None if data["extra_items"] is None else deserialize_type(data["extra_items"]),
         )
 
     def write(self, data: Buffer) -> None:
@@ -2985,13 +2991,18 @@ class TypedDictType(ProperType):
         write_type_map(data, self.items)
         write_str_list(data, sorted(self.required_keys))
         write_str_list(data, sorted(self.readonly_keys))
+        write_type_opt(data, self.extra_items)
 
     @classmethod
     def read(cls, data: Buffer) -> TypedDictType:
         assert read_tag(data) == INSTANCE
         fallback = Instance.read(data)
         return TypedDictType(
-            read_type_map(data), set(read_str_list(data)), set(read_str_list(data)), fallback
+            read_type_map(data),
+            set(read_str_list(data)),
+            set(read_str_list(data)),
+            fallback,
+            read_type_opt(data),
         )
 
     @property
@@ -3015,6 +3026,7 @@ class TypedDictType(ProperType):
         item_names: list[str] | None = None,
         required_keys: set[str] | None = None,
         readonly_keys: set[str] | None = None,
+        extra_items: Bogus[Type | None] = _dummy,
     ) -> TypedDictType:
         if fallback is None:
             fallback = self.fallback
@@ -3029,7 +3041,11 @@ class TypedDictType(ProperType):
         if item_names is not None:
             items = {k: v for (k, v) in items.items() if k in item_names}
             required_keys &= set(item_names)
-        return TypedDictType(items, required_keys, readonly_keys, fallback, self.line, self.column)
+        if extra_items is _dummy:
+            extra_items = self.extra_items
+        return TypedDictType(
+            items, required_keys, readonly_keys, fallback, extra_items, self.line, self.column
+        )
 
     def create_anonymous_fallback(self) -> Instance:
         anonymous = self.as_anonymous()
@@ -3848,7 +3864,13 @@ class TypeStrVisitor(SyntheticTypeVisitor[str]):
         if t.fallback and t.fallback.type:
             if t.fallback.type.fullname not in TPDICT_FB_NAMES:
                 prefix = repr(t.fallback.type.fullname) + ", "
-        return f"TypedDict({prefix}{s})"
+
+        if t.extra_items is None:
+            extra_items = ""
+        else:
+            extra_items = f", extra_items={t.extra_items.accept(self)}"
+
+        return f"TypedDict({prefix}{s}{extra_items})"
 
     def visit_raw_expression_type(self, t: RawExpressionType, /) -> str:
         return repr(t.literal_value)

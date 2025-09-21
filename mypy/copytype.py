@@ -108,7 +108,7 @@ class TypeShallowCopier(TypeVisitor[ProperType]):
 
     def visit_typeddict_type(self, t: TypedDictType) -> ProperType:
         return self.copy_common(
-            t, TypedDictType(t.items, t.required_keys, t.readonly_keys, t.fallback)
+            t, TypedDictType(t.items, t.required_keys, t.readonly_keys, t.fallback, t.extra_items)
         )
 
     def visit_literal_type(self, t: LiteralType) -> ProperType:

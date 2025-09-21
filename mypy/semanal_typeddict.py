@@ -108,7 +108,7 @@ class TypedDictAnalyzer:
             and defn.base_type_exprs[0].fullname in TPDICT_NAMES
         ):
             # Building a new TypedDict
-            field_types, statements, required_keys, readonly_keys = (
+            field_types, statements, required_keys, readonly_keys, extra_items = (
                 self.analyze_typeddict_classdef_fields(defn)
             )
             if field_types is None:
@@ -116,7 +116,13 @@ class TypedDictAnalyzer:
             if self.api.is_func_scope() and "@" not in defn.name:
                 defn.name += "@" + str(defn.line)
             info = self.build_typeddict_typeinfo(
-                defn.name, field_types, required_keys, readonly_keys, defn.line, existing_info
+                defn.name,
+                field_types,
+                required_keys,
+                readonly_keys,
+                extra_items,
+                defn.line,
+                existing_info,
             )
             defn.analyzed = TypedDictExpr(info)
             defn.analyzed.line = defn.line
@@ -162,16 +168,26 @@ class TypedDictAnalyzer:
             self.add_keys_and_types_from_base(
                 base, field_types, required_keys, readonly_keys, defn
             )
-        (new_field_types, new_statements, new_required_keys, new_readonly_keys) = (
-            self.analyze_typeddict_classdef_fields(defn, oldfields=field_types)
-        )
+        (
+            new_field_types,
+            new_statements,
+            new_required_keys,
+            new_readonly_keys,
+            new_extra_items,
+        ) = self.analyze_typeddict_classdef_fields(defn, oldfields=field_types)
         if new_field_types is None:
             return True, None  # Defer
         field_types.update(new_field_types)
         required_keys.update(new_required_keys)
         readonly_keys.update(new_readonly_keys)
         info = self.build_typeddict_typeinfo(
-            defn.name, field_types, required_keys, readonly_keys, defn.line, existing_info
+            defn.name,
+            field_types,
+            required_keys,
+            readonly_keys,
+            new_extra_items,
+            defn.line,
+            existing_info,
         )
         defn.analyzed = TypedDictExpr(info)
         defn.analyzed.line = defn.line
@@ -289,7 +305,7 @@ class TypedDictAnalyzer:
 
     def analyze_typeddict_classdef_fields(
         self, defn: ClassDef, oldfields: Collection[str] | None = None
-    ) -> tuple[dict[str, Type] | None, list[Statement], set[str], set[str]]:
+    ) -> tuple[dict[str, Type] | None, list[Statement], set[str], set[str], Type | None]:
         """Analyze fields defined in a TypedDict class definition.
 
         This doesn't consider inherited fields (if any). Also consider totality,
@@ -300,11 +316,13 @@ class TypedDictAnalyzer:
          * List of statements from defn.defs.body that are legally allowed to be a
            part of a TypedDict definition
          * Set of required keys
+         * Type of extra items (or None if extra items type is not specified)
         """
         fields: dict[str, Type] = {}
         readonly_keys = set[str]()
         required_keys = set[str]()
         statements: list[Statement] = []
+        extra_items: Type | None = None
 
         total: bool | None = True
         for key in defn.keywords:
@@ -323,7 +341,7 @@ class TypedDictAnalyzer:
                 except TypeTranslationError:
                     self.fail("Type expected", defn.keywords["extra_items"])
                 else:
-                    analyzed = self.api.anal_type(
+                    extra_items = self.api.anal_type(
                         type,
                         allow_typed_dict_special_forms=True,
                         allow_placeholder=not self.api.is_func_scope(),
@@ -369,7 +387,7 @@ class TypedDictAnalyzer:
                         prohibit_special_class_field_types="TypedDict",
                     )
                     if analyzed is None:
-                        return None, [], set(), set()  # Need to defer
+                        return None, [], set(), set(), None  # Need to defer
                     field_type = analyzed
                     if not has_placeholder(analyzed):
                         stmt.type = self.extract_meta_info(analyzed, stmt)[0]
@@ -389,7 +407,7 @@ class TypedDictAnalyzer:
                     # x: int assigns rvalue to TempNode(AnyType())
                     self.fail("Right hand side values are not supported in TypedDict", stmt)
 
-        return fields, statements, required_keys, readonly_keys
+        return fields, statements, required_keys, readonly_keys, extra_items
 
     def extract_meta_info(
         self, typ: Type, context: Context | None = None
@@ -449,7 +467,7 @@ class TypedDictAnalyzer:
             # This is a valid typed dict, but some type is not ready.
             # The caller should defer this until next iteration.
             return True, None, []
-        name, items, types, total, tvar_defs, ok = res
+        name, items, types, total, tvar_defs, extra_items, ok = res
         if not ok:
             # Error. Construct dummy return value.
             if var_name:
@@ -458,7 +476,7 @@ class TypedDictAnalyzer:
                     name += "@" + str(call.line)
             else:
                 name = var_name = "TypedDict@" + str(call.line)
-            info = self.build_typeddict_typeinfo(name, {}, set(), set(), call.line, None)
+            info = self.build_typeddict_typeinfo(name, {}, set(), set(), None, call.line, None)
         else:
             if var_name is not None and name != var_name:
                 self.fail(
@@ -502,6 +520,7 @@ class TypedDictAnalyzer:
                 dict(zip(items, types)),
                 required_keys,
                 readonly_keys,
+                extra_items,
                 call.line,
                 existing_info,
             )
@@ -517,10 +536,10 @@ class TypedDictAnalyzer:
 
     def parse_typeddict_args(
         self, call: CallExpr
-    ) -> tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], bool] | None:
+    ) -> tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], Type | None, bool] | None:
         """Parse typed dict call expression.
 
-        Return names, types, totality, was there an error during parsing.
+        Return names, types, totality, extra_items, was there an error during parsing.
         If some type is not ready, return None.
         """
         # TODO: Share code with check_argument_count in checkexpr.py?
@@ -551,6 +570,7 @@ class TypedDictAnalyzer:
                 "TypedDict() expects a dictionary literal as the second argument", call
             )
         total: bool | None = True
+        extra_items: Type | None = None
         if len(args) >= 3:
             for arg_name, arg in zip(call.arg_names[2:], args[2:]):
                 if arg_name == "extra_items":
@@ -560,7 +580,7 @@ class TypedDictAnalyzer:
                         )
                     except TypeTranslationError:
                         self.fail("Invalid argument to extra_items", arg, code=codes.ARG_TYPE)
-                        return "", [], [], True, [], False
+                        return "", [], [], True, [], None, False
                     else:
                         analyzed = self.api.anal_type(
                             type,
@@ -569,13 +589,16 @@ class TypedDictAnalyzer:
                         )
 
                         if analyzed is None:
-                            return "", [], [], True, [], False
+                            return "", [], [], True, [], None, False
+
+                        extra_items = analyzed
+
                 elif arg_name == "total":
                     total = require_bool_literal_argument(self.api, arg, "total")
                     if total is None:
-                        return "", [], [], True, [], False
+                        return "", [], [], True, [], None, False
                 else:
-                    return "", [], [], True, [], False
+                    return "", [], [], True, [], None, False
         dictexpr = args[1]
         tvar_defs = self.api.get_and_bind_all_tvars([t for k, t in dictexpr.items])
         res = self.parse_typeddict_fields_with_types(dictexpr.items)
@@ -584,7 +607,7 @@ class TypedDictAnalyzer:
             return None
         items, types, ok = res
         assert total is not None
-        return args[0].value, items, types, total, tvar_defs, ok
+        return args[0].value, items, types, total, tvar_defs, extra_items, ok
 
     def parse_typeddict_fields_with_types(
         self, dict_items: list[tuple[Expression | None, Expression]]
@@ -628,9 +651,9 @@ class TypedDictAnalyzer:
 
     def fail_typeddict_arg(
         self, message: str, context: Context
-    ) -> tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], bool]:
+    ) -> tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], Type | None, bool]:
         self.fail(message, context)
-        return "", [], [], True, [], False
+        return "", [], [], True, [], None, False
 
     def build_typeddict_typeinfo(
         self,
@@ -638,6 +661,7 @@ class TypedDictAnalyzer:
         item_types: dict[str, Type],
         required_keys: set[str],
         readonly_keys: set[str],
+        extra_items: Type | None,
         line: int,
         existing_info: TypeInfo | None,
     ) -> TypeInfo:
@@ -649,7 +673,9 @@ class TypedDictAnalyzer:
         )
         assert fallback is not None
         info = existing_info or self.api.basic_new_typeinfo(name, fallback, line)
-        typeddict_type = TypedDictType(item_types, required_keys, readonly_keys, fallback)
+        typeddict_type = TypedDictType(
+            item_types, required_keys, readonly_keys, fallback, extra_items
+        )
         if info.special_alias and has_placeholder(info.special_alias.target):
             self.api.process_placeholder(
                 None, "TypedDict item", info, force_progress=typeddict_type != info.typeddict_type

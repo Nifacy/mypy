@@ -4,7 +4,11 @@ from typing import TypedDict
 class A(TypedDict, extra_items=int):
     pass
 
+reveal_type(A)  # N: Revealed type is "def () -> TypedDict('__main__.A', {}, extra_items=builtins.int)"
+
 B = TypedDict("B", {}, extra_items=int)
+reveal_type(B)  # N: Revealed type is "def () -> TypedDict('__main__.B', {}, extra_items=builtins.int)"
+
 [builtins fixtures/dict.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
@@ -14,6 +18,9 @@ from typing import TypedDict
 class A(TypedDict, extra_items=True):  # E: Invalid type: try using Literal[True] instead?
     pass
 
+reveal_type(A)  # N: Revealed type is "def () -> TypedDict('__main__.A', {}, extra_items=Any)"
+
 B = TypedDict("B", {}, extra_items=46)  # E: Invalid type: try using Literal[46] instead?
+reveal_type(B)  # N: Revealed type is "def () -> TypedDict('__main__.B', {}, extra_items=Any)"
 [builtins fixtures/dict.pyi]
 [typing fixtures/typing-typeddict.pyi]

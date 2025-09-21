@@ -2166,7 +2166,7 @@ class TypeConverter:
                     continue
                 return self.invalid_type(n)
             items[item_name.value] = self.visit(value)
-        result = TypedDictType(items, set(), set(), _dummy_fallback, n.lineno, n.col_offset)
+        result = TypedDictType(items, set(), set(), _dummy_fallback, None, n.lineno, n.col_offset)
         result.extra_items_from = extra_items_from
         return result
 

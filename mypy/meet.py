@@ -1091,7 +1091,7 @@ class TypeMeetVisitor(TypeVisitor[ProperType]):
             fallback = self.s.create_anonymous_fallback()
             required_keys = t.required_keys | self.s.required_keys
             readonly_keys = t.readonly_keys | self.s.readonly_keys
-            return TypedDictType(items, required_keys, readonly_keys, fallback)
+            return TypedDictType(items, required_keys, readonly_keys, fallback, None)
         elif isinstance(self.s, Instance) and is_subtype(t, self.s):
             return t
         else:
