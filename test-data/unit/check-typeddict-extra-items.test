@@ -24,3 +24,18 @@ B = TypedDict("B", {}, extra_items=46)  # E: Invalid type: try using Literal[46]
 reveal_type(B)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.B', {}, extra_items=Any)"
 [builtins fixtures/dict.pyi]
 [typing fixtures/typing-typeddict.pyi]
+
+[case testTypedDictIndexingWithExtraItems]
+from typing import TypedDict, Literal
+
+class A(TypedDict, extra_items=bool):
+    name: str
+
+a: A
+key: Literal['extra', 'name']
+key2: Literal['extra1', 'extra2']
+reveal_type(a['extra'])  # N: Revealed type is "builtins.bool"
+reveal_type(a[key])  # N: Revealed type is "Union[builtins.bool, builtins.str]"
+reveal_type(a[key2])  # N: Revealed type is "builtins.bool"
+[builtins fixtures/dict.pyi]
+[typing fixtures/typing-typeddict.pyi]

@@ -4657,8 +4657,11 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
         for key_name in key_names:
             value_type = td_type.items.get(key_name)
             if value_type is None:
-                self.msg.typeddict_key_not_found(td_type, key_name, index, setitem)
-                return AnyType(TypeOfAny.from_error), set()
+                if td_type.extra_items is not None:
+                    value_types.append(td_type.extra_items)
+                else:
+                    self.msg.typeddict_key_not_found(td_type, key_name, index, setitem)
+                    return AnyType(TypeOfAny.from_error), set()
             else:
                 value_types.append(value_type)
         return make_simplified_union(value_types), set(key_names)
