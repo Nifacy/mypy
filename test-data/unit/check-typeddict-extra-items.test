@@ -37,6 +37,10 @@ key2: Literal['extra1', 'extra2']
 reveal_type(a['extra'])  # N: Revealed type is "builtins.bool"
 reveal_type(a[key])  # N: Revealed type is "Union[builtins.bool, builtins.str]"
 reveal_type(a[key2])  # N: Revealed type is "builtins.bool"
+
+reveal_type(a.get('extra'))  # N: Revealed type is "Union[builtins.bool, None]"
+reveal_type(a.get(key))  # N: Revealed type is "Union[builtins.bool, builtins.str, None]"
+reveal_type(a.get(key2))  # N: Revealed type is "Union[builtins.bool, None]"
 [builtins fixtures/dict.pyi]
 [typing fixtures/typing-typeddict.pyi]
 

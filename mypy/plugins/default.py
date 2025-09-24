@@ -265,7 +265,7 @@ def typed_dict_get_callback(ctx: MethodContext) -> Type:
 
         output_types: list[Type] = []
         for key in keys:
-            value_type = get_proper_type(ctx.type.items.get(key))
+            value_type = get_proper_type(ctx.type.items.get(key, ctx.type.extra_items))
             if value_type is None:
                 return ctx.default_return_type
 
