@@ -1011,9 +1011,10 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
             if assigned_readonly_keys:
                 self.msg.readonly_keys_mutated(assigned_readonly_keys, context=context)
         if not (
-            callee.required_keys <= always_present_keys and actual_keys <= callee.items.keys()
+            callee.required_keys <= always_present_keys
+            and (actual_keys <= callee.items.keys() or callee.extra_items is not None)
         ):
-            if not (actual_keys <= callee.items.keys()):
+            if not (actual_keys <= callee.items.keys() or callee.extra_items is not None):
                 self.msg.unexpected_typeddict_keys(
                     callee,
                     expected_keys=[
@@ -1075,9 +1076,9 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
             # this may give a better error message.
             ret_type = callee
 
-        for item_name, item_expected_type in ret_type.items.items():
-            if item_name in kwargs:
-                item_values = kwargs[item_name]
+        for item_name, item_values in kwargs.items():
+            item_expected_type = ret_type.items.get(item_name, ret_type.extra_items)
+            if item_expected_type is not None:
                 for item_value in item_values:
                     self.chk.check_simple_assignment(
                         lvalue_type=item_expected_type,

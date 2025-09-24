@@ -39,3 +39,24 @@ reveal_type(a[key])  # N: Revealed type is "Union[builtins.bool, builtins.str]"
 reveal_type(a[key2])  # N: Revealed type is "builtins.bool"
 [builtins fixtures/dict.pyi]
 [typing fixtures/typing-typeddict.pyi]
+
+[case testTypedDictCreationWithExtraItems]
+from typing import TypedDict, Union
+
+class Movie(TypedDict, extra_items=Union[bool, str]):
+    name: str
+
+a: Movie = {"name": "Blade Runner", "novel_adaptation": True}
+a2 = Movie(name="Blade Runner", novel_adaptation=True)
+
+b: Movie = {"name": "Blade Runner", "year": 1982}  # E: Incompatible types (expression has type "int", TypedDict item "year" has type "Union[bool, str]")
+b2 = Movie(name="Blade Runner", year=1982)  # E: Incompatible types (expression has type "int", TypedDict item "year" has type "Union[bool, str]")
+
+c: Movie = {"name": "Blade Runner"}
+c2 = Movie(name="Blade Runner")
+
+director: Union[str, bool] = "Ridley Scott"
+d: Movie = {"name": "Blade Runner", "director": director}
+d2 = Movie(name="Blade Runner", director=director)
+[builtins fixtures/dict.pyi]
+[typing fixtures/typing-typeddict.pyi]
