@@ -64,3 +64,14 @@ d: Movie = {"name": "Blade Runner", "director": director}
 d2 = Movie(name="Blade Runner", director=director)
 [builtins fixtures/dict.pyi]
 [typing fixtures/typing-typeddict.pyi]
+
+[case testTypedDictExtraItemDel]
+from typing import TypedDict
+
+class Movie(TypedDict, extra_items=str):
+    pass
+
+movie: Movie
+del movie["extra_item"]
+[builtins fixtures/dict.pyi]
+[typing fixtures/typing-typeddict.pyi]
