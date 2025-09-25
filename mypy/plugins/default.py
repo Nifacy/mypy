@@ -346,6 +346,8 @@ def typed_dict_pop_callback(ctx: MethodContext) -> Type:
             value_type = ctx.type.items.get(key)
             if value_type:
                 value_types.append(value_type)
+            elif ctx.type.extra_items is not None:
+                value_types.append(ctx.type.extra_items)
             else:
                 ctx.api.msg.typeddict_key_not_found(ctx.type, key, key_expr)
                 return AnyType(TypeOfAny.from_error)
