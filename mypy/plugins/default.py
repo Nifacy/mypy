@@ -137,6 +137,8 @@ class DefaultPlugin(Plugin):
     def get_method_hook(self, fullname: str) -> Callable[[MethodContext], Type] | None:
         if fullname == "typing.Mapping.get":
             return typed_dict_get_callback
+        elif fullname == "typing.Mapping.values":
+            return typed_dict_values_signature_callback
         elif fullname == "builtins.int.__pow__":
             return int_pow_callback
         elif fullname == "builtins.int.__neg__":
@@ -453,6 +455,21 @@ def typed_dict_delitem_callback(ctx: MethodContext) -> Type:
                 ctx.api.msg.typeddict_key_cannot_be_deleted(ctx.type, key, key_expr)
             elif key not in ctx.type.items and ctx.type.extra_items is None:
                 ctx.api.msg.typeddict_key_not_found(ctx.type, key, key_expr)
+    return ctx.default_return_type
+
+
+def typed_dict_values_signature_callback(ctx: MethodContext) -> Type:
+    """Try to infer a better return type for TypedDict.values
+    that depends on a TypedDict value and extra item types.
+    """
+    if (
+        isinstance(ctx.type, TypedDictType)
+        and len(ctx.args) == 0
+        and ctx.type.extra_items is not None
+    ):
+        items = [ctx.type.extra_items]
+        items.extend(ctx.type.items.values())
+        return ctx.api.named_generic_type("typing.Iterable", [make_simplified_union(items)])
     return ctx.default_return_type
 
 

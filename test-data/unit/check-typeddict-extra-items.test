@@ -102,3 +102,13 @@ reveal_type(a.setdefault('extra', 1)) # N: Revealed type is "builtins.int"
 a.setdefault('extra', '') # E: Argument 2 to "setdefault" of "TypedDict" has incompatible type "str"; expected "int"
 a.setdefault(key, 1) # E: Expected TypedDict key to be string literal
 [typing fixtures/typing-typeddict.pyi]
+
+[case testTypedDictExtraItemsValuesMethod]
+from typing import TypedDict
+
+class Movie(TypedDict, extra_items=int):
+    name: str
+
+movie: Movie
+reveal_type(movie.values())  # N: Revealed type is "typing.Iterable[Union[builtins.int, builtins.str]]"
+[typing fixtures/typing-typeddict.pyi]
