@@ -309,7 +309,7 @@ def typed_dict_pop_signature_callback(ctx: MethodSigContext) -> CallableType:
         and len(ctx.args[1]) == 1
     ):
         key = ctx.args[0][0].value
-        value_type = ctx.type.items.get(key)
+        value_type = ctx.type.items.get(key, ctx.type.extra_items)
         if value_type:
             # Tweak the signature to include the value type as context. It's
             # only needed for type inference since there's a union with a type

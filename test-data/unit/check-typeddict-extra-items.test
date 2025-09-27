@@ -85,5 +85,6 @@ class Movie(TypedDict, extra_items=str):
 movie: Movie
 
 reveal_type(movie.pop("extra_item"))  # N: Revealed type is "builtins.str"
+reveal_type(movie.pop("extra_item", default=''))  # N: Revealed type is "builtins.str"
 reveal_type(movie.pop("extra_item", default=23))  # N: Revealed type is "Union[builtins.str, Literal[23]?]"
 [typing fixtures/typing-typeddict.pyi]
