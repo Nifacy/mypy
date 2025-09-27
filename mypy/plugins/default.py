@@ -376,7 +376,7 @@ def typed_dict_setdefault_signature_callback(ctx: MethodSigContext) -> CallableT
         and len(ctx.args[1]) == 1
     ):
         key = ctx.args[0][0].value
-        value_type = ctx.type.items.get(key)
+        value_type = ctx.type.items.get(key, ctx.type.extra_items)
         if value_type:
             return signature.copy_modified(arg_types=[str_type, value_type])
     return signature.copy_modified(arg_types=[str_type, signature.arg_types[1]])
@@ -409,7 +409,7 @@ def typed_dict_setdefault_callback(ctx: MethodContext) -> Type:
 
         value_types = []
         for key in keys:
-            value_type = ctx.type.items.get(key)
+            value_type = ctx.type.items.get(key, ctx.type.extra_items)
 
             if value_type is None:
                 ctx.api.msg.typeddict_key_not_found(ctx.type, key, key_expr)
