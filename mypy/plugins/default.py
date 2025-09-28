@@ -83,6 +83,7 @@ from mypy.types import (
 TD_SETDEFAULT_NAMES: Final = {n + ".setdefault" for n in TPDICT_FB_NAMES}
 TD_POP_NAMES: Final = {n + ".pop" for n in TPDICT_FB_NAMES}
 TD_DELITEM_NAMES: Final = {n + ".__delitem__" for n in TPDICT_FB_NAMES}
+TD_VALUES_NAMES: Final = {n + ".values" for n in TPDICT_FB_NAMES}
 
 TD_UPDATE_METHOD_NAMES: Final = (
     {n + ".update" for n in TPDICT_FB_NAMES}
@@ -137,8 +138,6 @@ class DefaultPlugin(Plugin):
     def get_method_hook(self, fullname: str) -> Callable[[MethodContext], Type] | None:
         if fullname == "typing.Mapping.get":
             return typed_dict_get_callback
-        elif fullname == "typing.Mapping.values":
-            return typed_dict_values_signature_callback
         elif fullname == "builtins.int.__pow__":
             return int_pow_callback
         elif fullname == "builtins.int.__neg__":
@@ -153,6 +152,8 @@ class DefaultPlugin(Plugin):
             return typed_dict_pop_callback
         elif fullname in TD_DELITEM_NAMES:
             return typed_dict_delitem_callback
+        elif fullname in TD_VALUES_NAMES:
+            return typed_dict_values_callback
         elif fullname == "_ctypes.Array.__getitem__":
             return array_getitem_callback
         elif fullname == "_ctypes.Array.__iter__":
@@ -458,7 +459,7 @@ def typed_dict_delitem_callback(ctx: MethodContext) -> Type:
     return ctx.default_return_type
 
 
-def typed_dict_values_signature_callback(ctx: MethodContext) -> Type:
+def typed_dict_values_callback(ctx: MethodContext) -> Type:
     """Try to infer a better return type for TypedDict.values
     that depends on a TypedDict value and extra item types.
     """

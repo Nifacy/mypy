@@ -48,6 +48,7 @@ from mypy.types import (
     ReadOnlyType,
     RequiredType,
     Type,
+    Instance,
     TypedDictType,
     TypeOfAny,
     TypeVarLikeType,
@@ -102,14 +103,23 @@ class TypedDictAnalyzer:
             existing_info = defn.analyzed.info
 
         field_types: dict[str, Type] | None
+        extra_items_allowed: bool = False
+        fallback: Instance | None = None
+
         if (
             len(defn.base_type_exprs) == 1
             and isinstance(defn.base_type_exprs[0], RefExpr)
             and defn.base_type_exprs[0].fullname in TPDICT_NAMES
         ):
+            extra_items_allowed = defn.base_type_exprs[0].fullname == "typing_extensions.TypedDict"
+            if extra_items_allowed:
+                fallback = self.api.named_type("typing_extensions._TypedDict", [])
+
             # Building a new TypedDict
             field_types, statements, required_keys, readonly_keys, extra_items = (
-                self.analyze_typeddict_classdef_fields(defn)
+                self.analyze_typeddict_classdef_fields(
+                    defn, extra_items_allowed=extra_items_allowed
+                )
             )
             if field_types is None:
                 return True, None  # Defer
@@ -123,6 +133,7 @@ class TypedDictAnalyzer:
                 extra_items,
                 defn.line,
                 existing_info,
+                fallback,
             )
             defn.analyzed = TypedDictExpr(info)
             defn.analyzed.line = defn.line
@@ -174,7 +185,9 @@ class TypedDictAnalyzer:
             new_required_keys,
             new_readonly_keys,
             new_extra_items,
-        ) = self.analyze_typeddict_classdef_fields(defn, oldfields=field_types)
+        ) = self.analyze_typeddict_classdef_fields(
+            defn, oldfields=field_types, extra_items_allowed=extra_items_allowed
+        )
         if new_field_types is None:
             return True, None  # Defer
         field_types.update(new_field_types)
@@ -188,6 +201,7 @@ class TypedDictAnalyzer:
             new_extra_items,
             defn.line,
             existing_info,
+            fallback,
         )
         defn.analyzed = TypedDictExpr(info)
         defn.analyzed.line = defn.line
@@ -304,7 +318,10 @@ class TypedDictAnalyzer:
         return mapped_items
 
     def analyze_typeddict_classdef_fields(
-        self, defn: ClassDef, oldfields: Collection[str] | None = None
+        self,
+        defn: ClassDef,
+        oldfields: Collection[str] | None = None,
+        extra_items_allowed: bool = False,
     ) -> tuple[dict[str, Type] | None, list[Statement], set[str], set[str], Type | None]:
         """Analyze fields defined in a TypedDict class definition.
 
@@ -331,7 +348,7 @@ class TypedDictAnalyzer:
                     self.api, defn.keywords["total"], "total", True
                 )
                 continue
-            if key == "extra_items":
+            if key == "extra_items" and extra_items_allowed:
                 try:
                     type = expr_to_unanalyzed_type(
                         expr=defn.keywords["extra_items"],
@@ -462,7 +479,14 @@ class TypedDictAnalyzer:
         fullname = callee.fullname
         if fullname not in TPDICT_NAMES:
             return False, None, []
-        res = self.parse_typeddict_args(call)
+
+        extra_items_allowed = callee.fullname == "typing_extensions.TypedDict"
+        if extra_items_allowed:
+            fallback: Instance | None = self.api.named_type("typing_extensions._TypedDict", [])
+        else:
+            fallback = None
+
+        res = self.parse_typeddict_args(call, extra_items_allowed=extra_items_allowed)
         if res is None:
             # This is a valid typed dict, but some type is not ready.
             # The caller should defer this until next iteration.
@@ -476,7 +500,9 @@ class TypedDictAnalyzer:
                     name += "@" + str(call.line)
             else:
                 name = var_name = "TypedDict@" + str(call.line)
-            info = self.build_typeddict_typeinfo(name, {}, set(), set(), None, call.line, None)
+            info = self.build_typeddict_typeinfo(
+                name, {}, set(), set(), None, call.line, None, fallback
+            )
         else:
             if var_name is not None and name != var_name:
                 self.fail(
@@ -523,6 +549,7 @@ class TypedDictAnalyzer:
                 extra_items,
                 call.line,
                 existing_info,
+                fallback,
             )
             info.line = node.line
         # Store generated TypeInfo under both names, see semanal_namedtuple for more details.
@@ -535,7 +562,7 @@ class TypedDictAnalyzer:
         return True, info, tvar_defs
 
     def parse_typeddict_args(
-        self, call: CallExpr
+        self, call: CallExpr, extra_items_allowed: bool = False
     ) -> tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], Type | None, bool] | None:
         """Parse typed dict call expression.
 
@@ -555,9 +582,11 @@ class TypedDictAnalyzer:
             [ARG_POS, ARG_POS, ARG_NAMED, ARG_NAMED],
         ):
             return self.fail_typeddict_arg("Unexpected arguments to TypedDict()", call)
+
+        allowed_arg_names = ("total", "extra_items") if extra_items_allowed else ("total",)
         if len(args) >= 3 and call.arg_names[2] != "total":
             for arg_name in call.arg_names[2:]:
-                if arg_name not in ("total", "extra_items"):
+                if arg_name not in allowed_arg_names:
                     return self.fail_typeddict_arg(
                         f'Unexpected keyword argument "{arg_name}" for "TypedDict"', call
                     )
@@ -664,13 +693,15 @@ class TypedDictAnalyzer:
         extra_items: Type | None,
         line: int,
         existing_info: TypeInfo | None,
+        fallback: Instance | None = None,
     ) -> TypeInfo:
-        # Prefer typing then typing_extensions if available.
-        fallback = (
-            self.api.named_type_or_none("typing._TypedDict", [])
-            or self.api.named_type_or_none("typing_extensions._TypedDict", [])
-            or self.api.named_type_or_none("mypy_extensions._TypedDict", [])
-        )
+        if fallback is None:
+            # Prefer typing then typing_extensions if available.
+            fallback = (
+                self.api.named_type_or_none("typing._TypedDict", [])
+                or self.api.named_type_or_none("typing_extensions._TypedDict", [])
+                or self.api.named_type_or_none("mypy_extensions._TypedDict", [])
+            )
         assert fallback is not None
         info = existing_info or self.api.basic_new_typeinfo(name, fallback, line)
         typeddict_type = TypedDictType(

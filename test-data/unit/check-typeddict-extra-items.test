@@ -1,5 +1,18 @@
-[case testCanUseExtraItemsKeywordArgumentsInTypedDictConstructor]
+[case testUnableToUseExtraItemsInTypedDictFromTyping]
 from typing import TypedDict
+
+class A(TypedDict, extra_items=int): # E: Unexpected keyword argument "extra_items" for "__init_subclass__" of "TypedDict"
+    pass
+
+reveal_type(A) # N: Revealed type is "def () -> TypedDict('__main__.A', {})"
+
+B = TypedDict("B", {}, extra_items=int) # E: Unexpected keyword argument "extra_items" for "TypedDict"
+reveal_type(B) # N: Revealed type is "def () -> TypedDict('__main__.B', {})"
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]
+
+[case testCanUseExtraItemsKeywordArgumentsInTypedDictConstructor]
+from typing_extensions import TypedDict
 
 class A(TypedDict, extra_items=int):
     pass
@@ -8,12 +21,11 @@ reveal_type(A)  # N: Revealed type is "def (**builtins.int) -> TypedDict('__main
 
 B = TypedDict("B", {}, extra_items=int)
 reveal_type(B)  # N: Revealed type is "def (**builtins.int) -> TypedDict('__main__.B', {}, extra_items=builtins.int)"
-
-[builtins fixtures/dict.pyi]
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
 [case testTypedDictWithInvalidExtraItemsArgument]
-from typing import TypedDict
+from typing_extensions import TypedDict
 
 class A(TypedDict, extra_items=True):  # E: Invalid type: try using Literal[True] instead?
     pass
@@ -22,11 +34,12 @@ reveal_type(A)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.A', {}
 
 B = TypedDict("B", {}, extra_items=46)  # E: Invalid type: try using Literal[46] instead?
 reveal_type(B)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.B', {}, extra_items=Any)"
-[builtins fixtures/dict.pyi]
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
 [case testTypedDictIndexingWithExtraItems]
-from typing import TypedDict, Literal
+from typing_extensions import TypedDict
+from typing import Literal
 
 class A(TypedDict, extra_items=bool):
     name: str
@@ -41,11 +54,12 @@ reveal_type(a[key2])  # N: Revealed type is "builtins.bool"
 reveal_type(a.get('extra'))  # N: Revealed type is "Union[builtins.bool, None]"
 reveal_type(a.get(key))  # N: Revealed type is "Union[builtins.bool, builtins.str, None]"
 reveal_type(a.get(key2))  # N: Revealed type is "Union[builtins.bool, None]"
-[builtins fixtures/dict.pyi]
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
 [case testTypedDictCreationWithExtraItems]
-from typing import TypedDict, Union
+from typing_extensions import TypedDict
+from typing import Union
 
 class Movie(TypedDict, extra_items=Union[bool, str]):
     name: str
@@ -62,22 +76,22 @@ c2 = Movie(name="Blade Runner")
 director: Union[str, bool] = "Ridley Scott"
 d: Movie = {"name": "Blade Runner", "director": director}
 d2 = Movie(name="Blade Runner", director=director)
-[builtins fixtures/dict.pyi]
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
 [case testTypedDictExtraItemDel]
-from typing import TypedDict
+from typing_extensions import TypedDict
 
 class Movie(TypedDict, extra_items=str):
     pass
 
 movie: Movie
 del movie["extra_item"]
-[builtins fixtures/dict.pyi]
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
 [case testTypedDictExtraItemsPopMethod]
-from typing import TypedDict
+from typing_extensions import TypedDict
 
 class Movie(TypedDict, extra_items=str):
     pass
@@ -87,10 +101,11 @@ movie: Movie
 reveal_type(movie.pop("extra_item"))  # N: Revealed type is "builtins.str"
 reveal_type(movie.pop("extra_item", default=''))  # N: Revealed type is "builtins.str"
 reveal_type(movie.pop("extra_item", default=23))  # N: Revealed type is "Union[builtins.str, Literal[23]?]"
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
 [case testTypedDictExtraItemsSetDefaultMethod]
-from typing import TypedDict
+from typing_extensions import TypedDict
 
 class A(TypedDict, extra_items=int):
     pass
@@ -101,14 +116,16 @@ key: str
 reveal_type(a.setdefault('extra', 1)) # N: Revealed type is "builtins.int"
 a.setdefault('extra', '') # E: Argument 2 to "setdefault" of "TypedDict" has incompatible type "str"; expected "int"
 a.setdefault(key, 1) # E: Expected TypedDict key to be string literal
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
 [case testTypedDictExtraItemsValuesMethod]
-from typing import TypedDict
+from typing_extensions import TypedDict
 
 class Movie(TypedDict, extra_items=int):
     name: str
 
 movie: Movie
 reveal_type(movie.values())  # N: Revealed type is "typing.Iterable[Union[builtins.int, builtins.str]]"
+[builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]

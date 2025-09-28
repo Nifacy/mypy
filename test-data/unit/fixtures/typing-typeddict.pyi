@@ -18,6 +18,7 @@ TypeVar = 0
 Generic = 0
 Protocol = 0
 Tuple = 0
+Type = 0
 Callable = 0
 NamedTuple = 0
 Final = 0
