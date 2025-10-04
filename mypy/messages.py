@@ -2683,7 +2683,7 @@ def format_type_inner(
         if typ.extra_items is None:
             extra_items = ""
         else:
-            extra_items = f", extra_items={format(typ.extra_items)}"
+            extra_items = f", extra_items={format(typ.extra_items.type)}"
 
         return f"TypedDict({{{', '.join(items)}}}{extra_items})"
     elif isinstance(typ, LiteralType):

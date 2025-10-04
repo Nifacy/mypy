@@ -26,6 +26,7 @@ from mypy.types import (
     DeletedType,
     EllipsisType,
     ErasedType,
+    ExtraItemsInfo,
     Instance,
     LiteralType,
     NoneType,
@@ -276,7 +277,9 @@ class TypeTranslator(TypeVisitor[Type]):
         items = {item_name: item_type.accept(self) for (item_name, item_type) in t.items.items()}
 
         if t.extra_items is not None:
-            extra_items = t.extra_items.accept(self)
+            extra_items = ExtraItemsInfo(
+                type=t.extra_items.type.accept(self), is_readonly=t.extra_items.is_readonly
+            )
         else:
             extra_items = None
 

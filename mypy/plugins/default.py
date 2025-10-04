@@ -268,7 +268,8 @@ def typed_dict_get_callback(ctx: MethodContext) -> Type:
 
         output_types: list[Type] = []
         for key in keys:
-            value_type = get_proper_type(ctx.type.items.get(key, ctx.type.extra_items))
+            extra_items_type = None if ctx.type.extra_items is None else ctx.type.extra_items.type
+            value_type = get_proper_type(ctx.type.items.get(key, extra_items_type))
             if value_type is None:
                 return ctx.default_return_type
 
@@ -312,7 +313,8 @@ def typed_dict_pop_signature_callback(ctx: MethodSigContext) -> CallableType:
         and len(ctx.args[1]) == 1
     ):
         key = ctx.args[0][0].value
-        value_type = ctx.type.items.get(key, ctx.type.extra_items)
+        extra_items_type = ctx.type.extra_items.type if ctx.type.extra_items is not None else None
+        value_type = ctx.type.items.get(key, extra_items_type)
         if value_type:
             # Tweak the signature to include the value type as context. It's
             # only needed for type inference since there's a union with a type
@@ -350,7 +352,7 @@ def typed_dict_pop_callback(ctx: MethodContext) -> Type:
             if value_type:
                 value_types.append(value_type)
             elif ctx.type.extra_items is not None:
-                value_types.append(ctx.type.extra_items)
+                value_types.append(ctx.type.extra_items.type)
             else:
                 ctx.api.msg.typeddict_key_not_found(ctx.type, key, key_expr)
                 return AnyType(TypeOfAny.from_error)
@@ -379,7 +381,8 @@ def typed_dict_setdefault_signature_callback(ctx: MethodSigContext) -> CallableT
         and len(ctx.args[1]) == 1
     ):
         key = ctx.args[0][0].value
-        value_type = ctx.type.items.get(key, ctx.type.extra_items)
+        extra_items_type = ctx.type.extra_items.type if ctx.type.extra_items is not None else None
+        value_type = ctx.type.items.get(key, extra_items_type)
         if value_type:
             return signature.copy_modified(arg_types=[str_type, value_type])
     return signature.copy_modified(arg_types=[str_type, signature.arg_types[1]])
@@ -412,7 +415,11 @@ def typed_dict_setdefault_callback(ctx: MethodContext) -> Type:
 
         value_types = []
         for key in keys:
-            value_type = ctx.type.items.get(key, ctx.type.extra_items)
+            if ctx.type.extra_items is not None:
+                extra_items_type = ctx.type.extra_items.type
+            else:
+                extra_items_type = None
+            value_type = ctx.type.items.get(key, extra_items_type)
 
             if value_type is None:
                 ctx.api.msg.typeddict_key_not_found(ctx.type, key, key_expr)
@@ -468,7 +475,7 @@ def typed_dict_values_callback(ctx: MethodContext) -> Type:
         and len(ctx.args) == 0
         and ctx.type.extra_items is not None
     ):
-        items = [ctx.type.extra_items]
+        items = [ctx.type.extra_items.type]
         items.extend(ctx.type.items.values())
         return ctx.api.named_generic_type("typing.Iterable", [make_simplified_union(items)])
     return ctx.default_return_type

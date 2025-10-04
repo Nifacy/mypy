@@ -45,10 +45,11 @@ from mypy.typeanal import check_for_explicit_any, has_any_from_unimported_type
 from mypy.types import (
     TPDICT_NAMES,
     AnyType,
+    ExtraItemsInfo,
+    Instance,
     ReadOnlyType,
     RequiredType,
     Type,
-    Instance,
     TypedDictType,
     TypeOfAny,
     TypeVarLikeType,
@@ -322,7 +323,7 @@ class TypedDictAnalyzer:
         defn: ClassDef,
         oldfields: Collection[str] | None = None,
         extra_items_allowed: bool = False,
-    ) -> tuple[dict[str, Type] | None, list[Statement], set[str], set[str], Type | None]:
+    ) -> tuple[dict[str, Type] | None, list[Statement], set[str], set[str], ExtraItemsInfo | None]:
         """Analyze fields defined in a TypedDict class definition.
 
         This doesn't consider inherited fields (if any). Also consider totality,
@@ -339,7 +340,7 @@ class TypedDictAnalyzer:
         readonly_keys = set[str]()
         required_keys = set[str]()
         statements: list[Statement] = []
-        extra_items: Type | None = None
+        extra_items: ExtraItemsInfo | None = None
 
         total: bool | None = True
         for key in defn.keywords:
@@ -358,11 +359,14 @@ class TypedDictAnalyzer:
                 except TypeTranslationError:
                     self.fail("Type expected", defn.keywords["extra_items"])
                 else:
-                    extra_items = self.api.anal_type(
+                    extra_items_type = self.api.anal_type(
                         type,
                         allow_typed_dict_special_forms=True,
                         allow_placeholder=not self.api.is_func_scope(),
                     )
+
+                    extra_items = self.type_to_extra_items_info(extra_items_type)
+
                 continue
             for_function = ' for "__init_subclass__" of "TypedDict"'
             self.msg.unexpected_keyword_argument_for_function(for_function, key, defn)
@@ -563,7 +567,10 @@ class TypedDictAnalyzer:
 
     def parse_typeddict_args(
         self, call: CallExpr, extra_items_allowed: bool = False
-    ) -> tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], Type | None, bool] | None:
+    ) -> (
+        tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], ExtraItemsInfo | None, bool]
+        | None
+    ):
         """Parse typed dict call expression.
 
         Return names, types, totality, extra_items, was there an error during parsing.
@@ -599,7 +606,7 @@ class TypedDictAnalyzer:
                 "TypedDict() expects a dictionary literal as the second argument", call
             )
         total: bool | None = True
-        extra_items: Type | None = None
+        extra_items: ExtraItemsInfo | None = None
         if len(args) >= 3:
             for arg_name, arg in zip(call.arg_names[2:], args[2:]):
                 if arg_name == "extra_items":
@@ -620,7 +627,7 @@ class TypedDictAnalyzer:
                         if analyzed is None:
                             return "", [], [], True, [], None, False
 
-                        extra_items = analyzed
+                        extra_items = self.type_to_extra_items_info(analyzed)
 
                 elif arg_name == "total":
                     total = require_bool_literal_argument(self.api, arg, "total")
@@ -680,7 +687,9 @@ class TypedDictAnalyzer:
 
     def fail_typeddict_arg(
         self, message: str, context: Context
-    ) -> tuple[str, list[str], list[Type], bool, list[TypeVarLikeType], Type | None, bool]:
+    ) -> tuple[
+        str, list[str], list[Type], bool, list[TypeVarLikeType], ExtraItemsInfo | None, bool
+    ]:
         self.fail(message, context)
         return "", [], [], True, [], None, False
 
@@ -690,7 +699,7 @@ class TypedDictAnalyzer:
         item_types: dict[str, Type],
         required_keys: set[str],
         readonly_keys: set[str],
-        extra_items: Type | None,
+        extra_items: ExtraItemsInfo | None,
         line: int,
         existing_info: TypeInfo | None,
         fallback: Instance | None = None,
@@ -715,6 +724,13 @@ class TypedDictAnalyzer:
         return info
 
     # Helpers
+
+    def type_to_extra_items_info(self, extra_items_type: Type | None) -> ExtraItemsInfo | None:
+        if extra_items_type is not None:
+            return ExtraItemsInfo(
+                type=extra_items_type, is_readonly=False  # TODO: add support of ReadOnly types
+            )
+        return None
 
     def is_typeddict(self, expr: Expression) -> bool:
         return isinstance(expr, RefExpr) and (

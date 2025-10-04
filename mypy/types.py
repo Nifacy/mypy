@@ -2875,6 +2875,32 @@ class TupleType(ProperType):
         return TupleType(slice_items, fallback, self.line, self.column, self.implicit)
 
 
+class ExtraItemsInfo:
+    def __init__(self, type: Type, is_readonly: bool) -> None:
+        self.type = type
+        self.is_readonly = is_readonly
+
+    def serialize(self) -> JsonDict:
+        return {
+            ".class": "ExtraItemsInfo",
+            "type": self.type.serialize(),
+            "is_readonly": self.is_readonly,
+        }
+
+    @classmethod
+    def deserialize(cls, data: JsonDict) -> ExtraItemsInfo:
+        assert data[".class"] == "ExtraItemsInfo"
+        return ExtraItemsInfo(deserialize_type(data["type"]), data["is_readonly"])
+
+    def write(self, data: Buffer) -> None:
+        self.type.write(data)
+        write_bool(data, self.is_readonly)
+
+    @classmethod
+    def read(cls, data: Buffer) -> ExtraItemsInfo:
+        return ExtraItemsInfo(read_type(data), read_bool(data))
+
+
 class TypedDictType(ProperType):
     """Type of TypedDict object {'k1': v1, ..., 'kn': vn}.
 
@@ -2909,7 +2935,7 @@ class TypedDictType(ProperType):
     required_keys: set[str]
     readonly_keys: set[str]
     fallback: Instance
-    extra_items: Type | None
+    extra_items: ExtraItemsInfo | None
 
     extra_items_from: list[ProperType]  # only used during semantic analysis
     to_be_mutated: bool  # only used in a plugin for `.update`, `|=`, etc
@@ -2920,7 +2946,7 @@ class TypedDictType(ProperType):
         required_keys: set[str],
         readonly_keys: set[str],
         fallback: Instance,
-        extra_items: Type | None,
+        extra_items: ExtraItemsInfo | None,
         line: int = -1,
         column: int = -1,
     ) -> None:
@@ -2982,7 +3008,11 @@ class TypedDictType(ProperType):
             set(data["required_keys"]),
             set(data["readonly_keys"]),
             Instance.deserialize(data["fallback"]),
-            None if data["extra_items"] is None else deserialize_type(data["extra_items"]),
+            (
+                None
+                if data["extra_items"] is None
+                else ExtraItemsInfo.deserialize(data["extra_items"])
+            ),
         )
 
     def write(self, data: Buffer) -> None:
@@ -2991,7 +3021,7 @@ class TypedDictType(ProperType):
         write_type_map(data, self.items)
         write_str_list(data, sorted(self.required_keys))
         write_str_list(data, sorted(self.readonly_keys))
-        write_type_opt(data, self.extra_items)
+        write_extra_items_opt(data, self.extra_items)
 
     @classmethod
     def read(cls, data: Buffer) -> TypedDictType:
@@ -3002,7 +3032,7 @@ class TypedDictType(ProperType):
             set(read_str_list(data)),
             set(read_str_list(data)),
             fallback,
-            read_type_opt(data),
+            read_extra_items_opt(data),
         )
 
     @property
@@ -3026,7 +3056,7 @@ class TypedDictType(ProperType):
         item_names: list[str] | None = None,
         required_keys: set[str] | None = None,
         readonly_keys: set[str] | None = None,
-        extra_items: Bogus[Type | None] = _dummy,
+        extra_items: Bogus[ExtraItemsInfo | None] = _dummy,
     ) -> TypedDictType:
         if fallback is None:
             fallback = self.fallback
@@ -3868,7 +3898,7 @@ class TypeStrVisitor(SyntheticTypeVisitor[str]):
         if t.extra_items is None:
             extra_items = ""
         else:
-            extra_items = f", extra_items={t.extra_items.accept(self)}"
+            extra_items = f", extra_items={t.extra_items.type.accept(self)}"
 
         return f"TypedDict({prefix}{s}{extra_items})"
 
@@ -4316,6 +4346,20 @@ def write_type_map(data: Buffer, value: dict[str, Type]) -> None:
     for key in sorted(value):
         write_str(data, key)
         value[key].write(data)
+
+
+def write_extra_items_opt(data: Buffer, value: ExtraItemsInfo | None) -> None:
+    if value is not None:
+        write_bool(data, True)
+        value.write(data)
+    else:
+        write_bool(data, False)
+
+
+def read_extra_items_opt(data: Buffer) -> ExtraItemsInfo | None:
+    if read_bool(data):
+        return ExtraItemsInfo.read(data)
+    return None
 
 
 # This cyclic import is unfortunate, but to avoid it we would need to move away all uses

@@ -983,7 +983,7 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
         arg_names: list[str | None] = list(callee.items.keys())
 
         if callee.extra_items is not None:
-            arg_types.append(callee.extra_items)
+            arg_types.append(callee.extra_items.type)
             arg_kinds.append(ArgKind.ARG_STAR2)
             arg_names.append(None)
 
@@ -1077,7 +1077,11 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
             ret_type = callee
 
         for item_name, item_values in kwargs.items():
-            item_expected_type = ret_type.items.get(item_name, ret_type.extra_items)
+            if ret_type.extra_items is not None:
+                extra_items_type = ret_type.extra_items.type
+            else:
+                extra_items_type = None
+            item_expected_type = ret_type.items.get(item_name, extra_items_type)
             if item_expected_type is not None:
                 for item_value in item_values:
                     self.chk.check_simple_assignment(
@@ -4659,7 +4663,7 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
             value_type = td_type.items.get(key_name)
             if value_type is None:
                 if td_type.extra_items is not None:
-                    value_types.append(td_type.extra_items)
+                    value_types.append(td_type.extra_items.type)
                 else:
                     self.msg.typeddict_key_not_found(td_type, key_name, index, setitem)
                     return AnyType(TypeOfAny.from_error), set()
