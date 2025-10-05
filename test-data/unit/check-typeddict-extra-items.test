@@ -259,3 +259,32 @@ c.update({"x": 23, "extra": "foo"})
 c.update({"x": 23, "extra": None})  # E: Incompatible types (expression has type "None", TypedDict item "extra" has type "Union[str, int]")
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
+
+[case testSetItemForExtraItems]
+from typing_extensions import TypedDict
+from typing import Union, ReadOnly
+
+A = TypedDict("A", {}, extra_items=str)
+B = TypedDict("B", {}, extra_items=ReadOnly[str])
+C = TypedDict("C", {}, extra_items=Union[str, int])
+
+a: A
+b: B
+c: C
+value: Union[str, int]
+
+a["extra"] = "foo"
+a["extra"] = 23  # E: Value of "extra" has incompatible type "int"; expected "str"
+a["extra"] = value  # E: Value of "extra" has incompatible type "Union[str, int]"; expected "str"
+
+b["extra"] = "foo"  # E: ReadOnly TypedDict key "extra" TypedDict is mutated
+b["extra"] = 23  # E: ReadOnly TypedDict key "extra" TypedDict is mutated \
+                 # E: Value of "extra" has incompatible type "int"; expected "str"
+b["extra"] = value  # E: ReadOnly TypedDict key "extra" TypedDict is mutated \
+                    # E: Value of "extra" has incompatible type "Union[str, int]"; expected "str"
+
+c["extra"] = "foo"
+c["extra"] = 23
+c["extra"] = value
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]
