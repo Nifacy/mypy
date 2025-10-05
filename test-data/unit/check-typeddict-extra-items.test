@@ -147,6 +147,18 @@ del movie["extra_item"]
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
+[case testUnableToDeleteReadOnlyExtraItem]
+from typing_extensions import TypedDict
+from typing import ReadOnly
+
+class Movie(TypedDict, extra_items=ReadOnly[str]):
+    pass
+
+movie: Movie
+del movie["extra_item"]  # E: Key "extra_item" of TypedDict "Movie" cannot be deleted
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]
+
 [case testTypedDictExtraItemsPopMethod]
 from typing_extensions import TypedDict
 

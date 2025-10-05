@@ -459,7 +459,15 @@ def typed_dict_delitem_callback(ctx: MethodContext) -> Type:
             return AnyType(TypeOfAny.from_error)
 
         for key in keys:
-            if key in ctx.type.required_keys or key in ctx.type.readonly_keys:
+            if (
+                key in ctx.type.required_keys
+                or key in ctx.type.readonly_keys
+                or (
+                    key not in ctx.type.items
+                    and ctx.type.extra_items is not None
+                    and ctx.type.extra_items.is_readonly
+                )
+            ):
                 ctx.api.msg.typeddict_key_cannot_be_deleted(ctx.type, key, key_expr)
             elif key not in ctx.type.items and ctx.type.extra_items is None:
                 ctx.api.msg.typeddict_key_not_found(ctx.type, key, key_expr)
