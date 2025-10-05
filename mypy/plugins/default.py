@@ -345,7 +345,15 @@ def typed_dict_pop_callback(ctx: MethodContext) -> Type:
 
         value_types = []
         for key in keys:
-            if key in ctx.type.required_keys or key in ctx.type.readonly_keys:
+            if (
+                key in ctx.type.required_keys
+                or key in ctx.type.readonly_keys
+                or (
+                    key not in ctx.type.items
+                    and ctx.type.extra_items is not None
+                    and ctx.type.extra_items.is_readonly
+                )
+            ):
                 ctx.api.msg.typeddict_key_cannot_be_deleted(ctx.type, key, key_expr)
 
             value_type = ctx.type.items.get(key)

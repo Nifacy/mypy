@@ -173,6 +173,20 @@ reveal_type(movie.pop("extra_item", default=23))  # N: Revealed type is "Union[b
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
+[case testUnableToPopReadOnlyExtraItems]
+from typing_extensions import TypedDict
+from typing import ReadOnly
+
+class Movie(TypedDict, extra_items=ReadOnly[str]):
+    pass
+
+movie: Movie
+
+reveal_type(movie.pop("extra_item"))  # N: Revealed type is "builtins.str" \
+                                      # E: Key "extra_item" of TypedDict "Movie" cannot be deleted
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]
+
 [case testTypedDictExtraItemsSetDefaultMethod]
 from typing_extensions import TypedDict
 
