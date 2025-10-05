@@ -415,6 +415,10 @@ def typed_dict_setdefault_callback(ctx: MethodContext) -> Type:
             return AnyType(TypeOfAny.from_error)
 
         assigned_readonly_keys = ctx.type.readonly_keys & set(keys)
+
+        if ctx.type.extra_items is not None and ctx.type.extra_items.is_readonly:
+            assigned_readonly_keys |= set(keys) - set(ctx.type.items.keys())
+
         if assigned_readonly_keys:
             ctx.api.msg.readonly_keys_mutated(assigned_readonly_keys, context=key_expr)
 

@@ -202,6 +202,25 @@ a.setdefault(key, 1) # E: Expected TypedDict key to be string literal
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
+[case testMutatedReadOnlyExtraItems]
+from typing_extensions import TypedDict
+from typing import ReadOnly, Literal
+
+class A(TypedDict, extra_items=ReadOnly[int]):
+    mutable: int
+
+a: A
+key: Literal['mutable', 'extra_item']
+key2: Literal['extra_item_1', 'extra_item_2']
+
+reveal_type(a.setdefault('extra_item', 1)) # N: Revealed type is "builtins.int" \
+                                           # E: ReadOnly TypedDict key "extra_item" TypedDict is mutated
+
+a.setdefault(key, 1) # E: ReadOnly TypedDict key "extra_item" TypedDict is mutated
+a.setdefault(key2, 1) # E: ReadOnly TypedDict keys ("extra_item_1", "extra_item_2") TypedDict are mutated
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]
+
 [case testTypedDictExtraItemsValuesMethod]
 from typing_extensions import TypedDict
 
