@@ -3898,7 +3898,10 @@ class TypeStrVisitor(SyntheticTypeVisitor[str]):
         if t.extra_items is None:
             extra_items = ""
         else:
-            extra_items = f", extra_items={t.extra_items.type.accept(self)}"
+            extra_item_type_str = t.extra_items.type.accept(self)
+            if t.extra_items.is_readonly:
+                extra_item_type_str = f"ReadOnly[{extra_item_type_str}]"
+            extra_items = f", extra_items={extra_item_type_str}"
 
         return f"TypedDict({prefix}{s}{extra_items})"
 

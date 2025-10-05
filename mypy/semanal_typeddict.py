@@ -727,9 +727,9 @@ class TypedDictAnalyzer:
 
     def type_to_extra_items_info(self, extra_items_type: Type | None) -> ExtraItemsInfo | None:
         if extra_items_type is not None:
-            return ExtraItemsInfo(
-                type=extra_items_type, is_readonly=False  # TODO: add support of ReadOnly types
-            )
+            # TODO: add printing error when extra item type marked as required
+            extra_items_type, _, readonly = self.extract_meta_info(extra_items_type)
+            return ExtraItemsInfo(extra_items_type, readonly)
         return None
 
     def is_typeddict(self, expr: Expression) -> bool:

@@ -2683,7 +2683,11 @@ def format_type_inner(
         if typ.extra_items is None:
             extra_items = ""
         else:
-            extra_items = f", extra_items={format(typ.extra_items.type)}"
+            formatted_extra_item_type = format(typ.extra_items.type)
+            if typ.extra_items.is_readonly:
+                formatted_extra_item_type = f"ReadOnly[{formatted_extra_item_type}]"
+
+            extra_items = f", extra_items={formatted_extra_item_type}"
 
         return f"TypedDict({{{', '.join(items)}}}{extra_items})"
     elif isinstance(typ, LiteralType):

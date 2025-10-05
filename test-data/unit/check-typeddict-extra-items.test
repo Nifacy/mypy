@@ -13,6 +13,20 @@ reveal_type(B) # N: Revealed type is "def () -> TypedDict('__main__.B', {})"
 
 [case testCanUseExtraItemsKeywordArgumentsInTypedDictConstructor]
 from typing_extensions import TypedDict
+from typing import ReadOnly
+
+class A(TypedDict, extra_items=ReadOnly[int]):
+    pass
+
+reveal_type(A)  # N: Revealed type is "def (**builtins.int) -> TypedDict('__main__.A', {}, extra_items=ReadOnly[builtins.int])"
+
+B = TypedDict("B", {}, extra_items=ReadOnly[int])
+reveal_type(B)  # N: Revealed type is "def (**builtins.int) -> TypedDict('__main__.B', {}, extra_items=ReadOnly[builtins.int])"
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]
+
+[case testCanUseReadOnlyTypeInExtraItemsKeywordArgumentsInTypedDictConstructor]
+from typing_extensions import TypedDict
 
 class A(TypedDict, extra_items=int):
     pass
