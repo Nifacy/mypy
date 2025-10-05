@@ -231,3 +231,31 @@ movie: Movie
 reveal_type(movie.values())  # N: Revealed type is "typing.Iterable[Union[builtins.int, builtins.str]]"
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
+
+[case testUpdateMethodWithConstants]
+from typing_extensions import TypedDict
+from typing import ReadOnly, Union
+
+A = TypedDict("A", {"x": int}, extra_items=int)
+B = TypedDict("B", {"x": int}, extra_items=ReadOnly[int])
+C = TypedDict("C", {"x": int}, extra_items=Union[str, int])
+
+a: A
+a.update({"x": 23})
+a.update({"x": 23, "extra": 23})
+a.update({"x": 23, "extra": "foo"})  # E: Incompatible types (expression has type "str", TypedDict item "extra" has type "int")
+
+b: B
+b.update({"x": 23})
+b.update({"x": 23, "extra": 23})  # E: ReadOnly TypedDict key "extra" TypedDict is mutated
+b.update({"x": 23, "extra": 23, "extra2": 46})  # E: ReadOnly TypedDict keys ("extra", "extra2") TypedDict are mutated
+b.update({"x": 23, "extra": "foo"})  # E: ReadOnly TypedDict key "extra" TypedDict is mutated \
+                                     # E: Incompatible types (expression has type "str", TypedDict item "extra" has type "int")
+
+c: C
+c.update({"x": 23})
+c.update({"x": 23, "extra": 23})
+c.update({"x": 23, "extra": "foo"})
+c.update({"x": 23, "extra": None})  # E: Incompatible types (expression has type "None", TypedDict item "extra" has type "Union[str, int]")
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]

@@ -1008,6 +1008,10 @@ class ExpressionChecker(ExpressionVisitor[Type], ExpressionCheckerSharedApi):
         actual_keys = kwargs.keys()
         if callee.to_be_mutated:
             assigned_readonly_keys = actual_keys & callee.readonly_keys
+
+            if callee.extra_items is not None and callee.extra_items.is_readonly:
+                assigned_readonly_keys |= actual_keys - set(callee.items.keys())
+
             if assigned_readonly_keys:
                 self.msg.readonly_keys_mutated(assigned_readonly_keys, context=context)
         if not (
