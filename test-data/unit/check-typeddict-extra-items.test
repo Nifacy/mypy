@@ -114,6 +114,28 @@ d2 = Movie(name="Blade Runner", director=director)
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
+[case testTypedDictCreationWithReadOnlyExtraItems]
+from typing_extensions import TypedDict
+from typing import Union, ReadOnly
+
+class Movie(TypedDict, extra_items=ReadOnly[Union[bool, str]]):
+    name: str
+
+a: Movie = {"name": "Blade Runner", "novel_adaptation": True}
+a2 = Movie(name="Blade Runner", novel_adaptation=True)
+
+b: Movie = {"name": "Blade Runner", "year": 1982}  # E: Incompatible types (expression has type "int", TypedDict item "year" has type "Union[bool, str]")
+b2 = Movie(name="Blade Runner", year=1982)  # E: Incompatible types (expression has type "int", TypedDict item "year" has type "Union[bool, str]")
+
+c: Movie = {"name": "Blade Runner"}
+c2 = Movie(name="Blade Runner")
+
+director: Union[str, bool] = "Ridley Scott"
+d: Movie = {"name": "Blade Runner", "director": director}
+d2 = Movie(name="Blade Runner", director=director)
+[builtins fixtures/tuple.pyi]
+[typing fixtures/typing-typeddict.pyi]
+
 [case testTypedDictExtraItemDel]
 from typing_extensions import TypedDict
 
