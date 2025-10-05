@@ -62,7 +62,7 @@ reveal_type(D)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.D', {}
 
 [case testTypedDictIndexingWithExtraItems]
 from typing_extensions import TypedDict
-from typing import Literal
+from typing import Literal, ReadOnly
 
 class A(TypedDict, extra_items=bool):
     name: str
@@ -77,6 +77,18 @@ reveal_type(a[key2])  # N: Revealed type is "builtins.bool"
 reveal_type(a.get('extra'))  # N: Revealed type is "Union[builtins.bool, None]"
 reveal_type(a.get(key))  # N: Revealed type is "Union[builtins.bool, builtins.str, None]"
 reveal_type(a.get(key2))  # N: Revealed type is "Union[builtins.bool, None]"
+
+class B(TypedDict, extra_items=ReadOnly[bool]):
+    name: str
+
+b: B
+reveal_type(b['extra'])  # N: Revealed type is "builtins.bool"
+reveal_type(b[key])  # N: Revealed type is "Union[builtins.bool, builtins.str]"
+reveal_type(b[key2])  # N: Revealed type is "builtins.bool"
+
+reveal_type(b.get('extra'))  # N: Revealed type is "Union[builtins.bool, None]"
+reveal_type(b.get(key))  # N: Revealed type is "Union[builtins.bool, builtins.str, None]"
+reveal_type(b.get(key2))  # N: Revealed type is "Union[builtins.bool, None]"
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
