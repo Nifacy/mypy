@@ -40,6 +40,7 @@ reveal_type(B)  # N: Revealed type is "def (**builtins.int) -> TypedDict('__main
 
 [case testTypedDictWithInvalidExtraItemsArgument]
 from typing_extensions import TypedDict
+from typing import ReadOnly
 
 class A(TypedDict, extra_items=True):  # E: Invalid type: try using Literal[True] instead?
     pass
@@ -48,6 +49,14 @@ reveal_type(A)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.A', {}
 
 B = TypedDict("B", {}, extra_items=46)  # E: Invalid type: try using Literal[46] instead?
 reveal_type(B)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.B', {}, extra_items=Any)"
+
+class C(TypedDict, extra_items=ReadOnly[True]):  # E: Invalid type: try using Literal[True] instead?
+    pass
+
+reveal_type(C)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.C', {}, extra_items=ReadOnly[Any])"
+
+D = TypedDict("D", {}, extra_items=ReadOnly[46])  # E: Invalid type: try using Literal[46] instead?
+reveal_type(D)  # N: Revealed type is "def (**Any) -> TypedDict('__main__.D', {}, extra_items=ReadOnly[Any])"
 [builtins fixtures/tuple.pyi]
 [typing fixtures/typing-typeddict.pyi]
 
